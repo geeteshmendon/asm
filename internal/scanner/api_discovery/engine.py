@@ -1,78 +1,58 @@
 import httpx
-import json
 
 API_PATHS = [
-    "/api", "/api/v1", "/api/v2", "/api/v3",
-    "/swagger.json", "/swagger/v1/swagger.json",
-    "/api/swagger.json", "/api/docs", "/api/schema",
+    "/api", "/api/v1",
+    "/swagger.json", "/api/swagger.json",
     "/openapi.json", "/api/openapi.json",
     "/graphql", "/api/graphql",
+    "/health", "/api/health",
     "/.well-known/openid-configuration",
-    "/api/health", "/api/status",
-    "/api/users", "/api/login", "/api/auth",
-    "/api/register", "/api/tokens",
-    "/health", "/healthz", "/readyz",
-    "/actuator", "/actuator/health",
-    "/api/endpoints", "/api/services",
-    "/docs", "/redoc", "/swagger",
+    "/actuator/health",
+    "/docs", "/swagger",
 ]
 
-COMMON_API_PORTS = [443, 80, 8080, 8443, 3000, 4000, 5000, 8000, 9000]
+
+async def check_path(client: httpx.AsyncClient, base: str, path: str) -> dict | None:
+    try:
+        resp = await client.get(f"{base}{path}", follow_redirects=False, timeout=3)
+        if resp.status_code in (200, 401, 403, 405):
+            content_type = resp.headers.get("content-type", "")
+            api_type = "unknown"
+            if "swagger" in path: api_type = "swagger"
+            elif "openapi" in path: api_type = "openapi"
+            elif "graphql" in path: api_type = "graphql"
+            elif "actuator" in path: api_type = "spring_actuator"
+            elif "docs" in path: api_type = "api_docs"
+            return {
+                "asset_type": "technology",
+                "value": f"{base}{path}",
+                "details": f"api_endpoint={path}, status={resp.status_code}, type={content_type[:30]}",
+                "api_type": api_type,
+            }
+    except Exception:
+        return None
 
 
-async def discover_api_endpoints(host: str, port: int = 443) -> list[dict]:
+async def discover_api_endpoints(host: str) -> list[dict]:
     results = []
-    schemes = ["https", "http"]
-    for scheme in schemes:
-        base = f"{scheme}://{host}:{port}"
-        async with httpx.AsyncClient(timeout=8, verify=False) as client:
+    bases = [f"https://{host}:443", f"https://{host}:80", f"http://{host}:80"]
+
+    async with httpx.AsyncClient(timeout=5, verify=False) as client:
+        for base in bases[:1]:  # Only try HTTPS:443 first
             for path in API_PATHS:
-                try:
-                    resp = await client.get(f"{base}{path}", follow_redirects=False)
-                    if resp.status_code in (200, 401, 403, 405):
-                        content_type = resp.headers.get("content-type", "")
-                        body_snippet = resp.text[:200] if resp.text else ""
-
-                        api_type = "unknown"
-                        if "swagger" in path.lower():
-                            api_type = "swagger"
-                        elif "openapi" in path.lower():
-                            api_type = "openapi"
-                        elif "graphql" in path.lower():
-                            api_type = "graphql"
-                        elif "actuator" in path.lower():
-                            api_type = "spring_actuator"
-                        elif "docs" in path.lower() or "redoc" in path.lower():
-                            api_type = "api_docs"
-
-                        details = f"api_endpoint={path}, status_code={resp.status_code}, content_type={content_type}"
-                        if "json" in content_type:
-                            try:
-                                data = resp.json()
-                                if isinstance(data, dict):
-                                    keys = list(data.keys())[:5]
-                                    details += f", response_keys={keys}"
-                            except Exception:
-                                pass
-
-                        results.append({
-                            "asset_type": "technology",
-                            "value": f"{host}:{port}{path}",
-                            "details": details,
-                            "api_type": api_type,
-                        })
-                except Exception:
-                    continue
+                result = await check_path(client, base, path)
+                if result:
+                    results.append(result)
+            if not results:
+                for path in ["/api", "/swagger.json", "/graphql", "/health"]:
+                    result = await check_path(client, base.replace(":443", ":80").replace("https://", "http://"), path)
+                    if result:
+                        results.append(result)
     return results
 
 
-async def scan_for_apis(host: str, ports: list[int] | None = None) -> list[dict]:
-    results = []
-    ports_to_scan = ports or [443, 80, 8080]
-    for port in ports_to_scan:
-        try:
-            api_results = await discover_api_endpoints(host, port)
-            results.extend(api_results)
-        except Exception:
-            continue
-    return results
+async def scan_for_apis(host: str) -> list[dict]:
+    try:
+        return await discover_api_endpoints(host)
+    except Exception:
+        return []

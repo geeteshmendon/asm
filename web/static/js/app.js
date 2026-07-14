@@ -33,7 +33,7 @@ $('heroForm')?.addEventListener('submit', async e => {
     toast('Target added! Running deep scan...');
     fetch(`${API}/targets/${t.id}/scan`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ scan_type: 'full', scan_profile: 'deep' })
+      body: JSON.stringify({ scan_type: 'full', scan_profile: 'standard' })
     }).catch(() => {});
     showPage('target-list');
   } catch (e) { toast(e.message || 'Failed', 'error'); }
@@ -73,7 +73,7 @@ async function scanTarget(id) {
   try {
     await fetch(`${API}/targets/${id}/scan`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ scan_type: 'full', scan_profile: 'deep' })
+      body: JSON.stringify({ scan_type: 'full', scan_profile: 'standard' })
     });
     toast('Deep scan started!');
     setTimeout(loadTargets, 3000);
@@ -99,7 +99,7 @@ $('targetInput')?.addEventListener('keydown', async e => {
     const t = await r.json(); input.value = '';
     fetch(`${API}/targets/${t.id}/scan`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ scan_type: 'full', scan_profile: 'deep' })
+      body: JSON.stringify({ scan_type: 'full', scan_profile: 'standard' })
     }).catch(() => {});
     toast('Added! Deep scanning...'); loadTargets();
   } catch (e) { toast(e.message || 'Failed', 'error'); }
@@ -177,7 +177,7 @@ async function runComprehensiveScan() {
   try {
     const r = await fetch(`${API}/targets/${detailId}/scan`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ scan_type: 'full', scan_profile: 'deep' })
+      body: JSON.stringify({ scan_type: 'full', scan_profile: 'standard' })
     });
     const d = await r.json();
     toast(`Deep scan #${d.job_id} started!`);
