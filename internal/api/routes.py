@@ -17,6 +17,15 @@ from internal.scanner.screenshot import engine as screenshot_engine
 from internal.export import exporter
 from internal.auth.auth import hash_password, create_session_token, generate_api_key, verify_api_key, get_current_user
 from internal.monitor.monitor import check_new_assets
+from internal.scanner.takeover import engine as takeover_engine
+from internal.scanner.api_discovery import engine as api_discovery_engine
+from internal.scanner.cloud import engine as cloud_engine
+from internal.scanner.cve import engine as cve_engine
+from internal.compliance import reports as compliance_reports
+from internal.waf import generator as waf_generator
+from internal.ai import analyzer as ai_analyzer
+from internal.integrations.jira import JiraIntegration
+from internal.integrations.github_issues import GitHubIssuesIntegration
 import asyncio
 import re
 import json
@@ -643,4 +652,198 @@ def list_scan_profiles():
         {"name": "light", "description": "Quick scan - subdomains + common ports only"},
         {"name": "standard", "description": "Balanced scan - all modules except SSL deep analysis"},
         {"name": "deep", "description": "Full scan - all modules including SSL cipher analysis + screenshots"},
-    ]
+]
+
+
+# ─── Takeover Detection ────────────────────────────────────
+
+@router.post("/targets/{target_id}/check-takeovers")
+async def check_takeovers(target_id: int, db: Session = Depends(get_db)):
+    target = db.query(Target).filter(Target.id == target_id).first()
+    if not target:
+        raise HTTPException(status_code=404, detail="Target not found")
+    assets = db.query(Asset).filter(Asset.target_id == target_id, Asset.asset_type == "subdomain").all()
+    subdomains = [a.value for a in assets]
+    results = await takeover_engine.scan_takeovers(target.domain, subdomains)
+    for r in results:
+        existing = db.query(Asset).filter(
+            Asset.target_id == target_id, Asset.asset_type == "vulnerability",
+            Asset.value == r["value"],
+        ).first()
+        if not existing:
+            asset = Asset(target_id=target_id, asset_type="vulnerability", value=r["value"], details=r["details"], risk_score=9.0)
+            db.add(asset)
+    db.commit()
+    return {"takeovers_found": len(results), "results": results}
+
+
+# ─── API Discovery ──────────────────────────────────────────
+
+@router.post("/targets/{target_id}/discover-apis")
+async def discover_apis(target_id: int, db: Session = Depends(get_db)):
+    target = db.query(Target).filter(Target.id == target_id).first()
+    if not target:
+        raise HTTPException(status_code=404, detail="Target not found")
+    results = await api_discovery_engine.scan_for_apis(target.domain)
+    for r in results:
+        existing = db.query(Asset).filter(
+            Asset.target_id == target_id, Asset.asset_type == "technology",
+            Asset.value == r["value"],
+        ).first()
+        if not existing:
+            asset = Asset(target_id=target_id, asset_type="technology", value=r["value"], details=r["details"])
+            db.add(asset)
+    db.commit()
+    return {"apis_discovered": len(results), "results": results}
+
+
+# ─── Cloud Discovery ────────────────────────────────────────
+
+@router.post("/targets/{target_id}/discover-cloud")
+async def discover_cloud(target_id: int, db: Session = Depends(get_db)):
+    target = db.query(Target).filter(Target.id == target_id).first()
+    if not target:
+        raise HTTPException(status_code=404, detail="Target not found")
+    assets = db.query(Asset).filter(Asset.target_id == target_id, Asset.asset_type == "subdomain").all()
+    subdomains = [a.value for a in assets]
+    results = await cloud_engine.discover_cloud_assets(target.domain, subdomains)
+    for r in results:
+        existing = db.query(Asset).filter(
+            Asset.target_id == target_id, Asset.asset_type == "technology",
+            Asset.value == r["value"],
+        ).first()
+        if not existing:
+            asset = Asset(target_id=target_id, asset_type="technology", value=r["value"], details=r["details"])
+            db.add(asset)
+    db.commit()
+    return {"cloud_assets": len(results), "results": results}
+
+
+# ─── CVE Lookup ─────────────────────────────────────────────
+
+@router.post("/targets/{target_id}/cve-lookup")
+async def cve_lookup(target_id: int, db: Session = Depends(get_db)):
+    target = db.query(Target).filter(Target.id == target_id).first()
+    if not target:
+        raise HTTPException(status_code=404, detail="Target not found")
+    tech_assets = db.query(Asset).filter(
+        Asset.target_id == target_id, Asset.asset_type == "technology"
+    ).all()
+    asset_dicts = [{"asset_type": a.asset_type, "value": a.value, "details": a.details or ""} for a in tech_assets]
+    results = await cve_engine.check_cves_for_assets(asset_dicts)
+    for r in results:
+        if r["asset_type"] == "vulnerability":
+            existing = db.query(Asset).filter(
+                Asset.target_id == target_id, Asset.asset_type == "vulnerability",
+                Asset.value == r["value"],
+            ).first()
+            if not existing:
+                severity_map = {"critical": 9, "high": 7, "medium": 5, "low": 2}
+                asset = Asset(
+                    target_id=target_id, asset_type="vulnerability",
+                    value=r["value"], details=r["details"],
+                    risk_score=severity_map.get(r.get("severity", "medium"), 5),
+                )
+                db.add(asset)
+    db.commit()
+    return {"cves_found": len(results), "results": results}
+
+
+# ─── Compliance Reports ─────────────────────────────────────
+
+@router.get("/compliance/owasp")
+def owasp_report(db: Session = Depends(get_db)):
+    return compliance_reports.generate_owasp_report(db)
+
+@router.get("/compliance/pci")
+def pci_report(db: Session = Depends(get_db)):
+    return compliance_reports.generate_pci_report(db)
+
+@router.get("/compliance/hipaa")
+def hipaa_report(db: Session = Depends(get_db)):
+    return compliance_reports.generate_hipaa_report(db)
+
+
+# ─── WAF Rules ──────────────────────────────────────────────
+
+@router.get("/waf-rules")
+def get_waf_rules(target_id: Optional[int] = None, db: Session = Depends(get_db)):
+    return asyncio.run(waf_generator.generate_waf_rules(db, target_id))
+
+
+# ─── Integrations ───────────────────────────────────────────
+
+@router.post("/integrations/send-finding")
+async def send_finding(integration: str, target_id: int, db: Session = Depends(get_db)):
+    target = db.query(Target).filter(Target.id == target_id).first()
+    if not target:
+        raise HTTPException(status_code=404, detail="Target not found")
+    vulns = db.query(Asset).filter(
+        Asset.target_id == target_id, Asset.asset_type == "vulnerability",
+        Asset.risk_score >= 7.0,
+    ).limit(5).all()
+    results = []
+    for v in vulns:
+        finding = {
+            "title": f"Vulnerability: {v.value}",
+            "type": v.asset_type,
+            "value": v.value,
+            "details": v.details or "",
+            "severity": "high" if (v.risk_score or 0) >= 7 else "medium",
+            "target_id": target_id,
+        }
+        if integration == "jira":
+            jira = JiraIntegration()
+            result = await jira.send_finding({"url": "", "project": "", "email": "", "token": ""}, finding)
+            results.append({"asset": v.value, "sent": result})
+        elif integration == "github":
+            gh = GitHubIssuesIntegration()
+            result = await gh.send_finding({"repo": "", "token": ""}, finding)
+            results.append({"asset": v.value, "sent": result})
+    return {"results": results, "note": "Configure integration credentials in the request body"}
+
+
+# ─── AI Analysis ────────────────────────────────────────────
+
+@router.post("/ai/analyze/{target_id}")
+async def ai_analyze(target_id: int, provider: str = "openai"):
+    result = await ai_analyzer.analyze_with_ai(target_id, provider)
+    return result
+
+
+# ─── Asset Classification ───────────────────────────────────
+
+@router.get("/targets/{target_id}/classification")
+def classify_assets(target_id: int, db: Session = Depends(get_db)):
+    target = db.query(Target).filter(Target.id == target_id).first()
+    if not target:
+        raise HTTPException(status_code=404, detail="Target not found")
+    assets = db.query(Asset).filter(Asset.target_id == target_id).all()
+    classification = {
+        "critical": [],
+        "high": [],
+        "medium": [],
+        "low": [],
+        "info": [],
+        "scan_recommendations": [],
+    }
+    for a in assets:
+        risk = a.risk_score or 0
+        if risk >= 9:
+            classification["critical"].append({"id": a.id, "value": a.value, "type": a.asset_type})
+        elif risk >= 7:
+            classification["high"].append({"id": a.id, "value": a.value, "type": a.asset_type})
+        elif risk >= 4:
+            classification["medium"].append({"id": a.id, "value": a.value, "type": a.asset_type})
+        elif risk > 0:
+            classification["low"].append({"id": a.id, "value": a.value, "type": a.asset_type})
+        else:
+            classification["info"].append({"id": a.id, "value": a.value, "type": a.asset_type})
+
+    vuln_count = len(classification["critical"]) + len(classification["high"])
+    if vuln_count > 5:
+        classification["scan_recommendations"].append("Critical/high vulnerability count elevated. Run a deep scan.")
+    if not any(a.asset_type == "port" for a in assets):
+        classification["scan_recommendations"].append("No port scan data. Run a port scan.")
+
+    return classification
