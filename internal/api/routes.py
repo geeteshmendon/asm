@@ -14,6 +14,7 @@ from internal.scanner.vuln import engine as vuln_engine
 from internal.scanner.passive import engine as passive_engine
 from internal.scanner.ssl import engine as ssl_engine
 from internal.scanner.screenshot import engine as screenshot_engine
+from internal.scanner.osint import engine as osint_engine
 from internal.export import exporter
 from internal.auth.auth import hash_password, create_session_token, generate_api_key, verify_api_key, get_current_user
 from internal.monitor.monitor import check_new_assets
@@ -294,6 +295,7 @@ SCAN_PROFILES = {
         "api_discovery": True,
         "cloud": True,
         "cve": True,
+        "osint": True,
     },
 }
 
@@ -425,6 +427,16 @@ async def trigger_scan(target_id: int, request: Optional[ScanRequest] = None, db
                            ).all()]
             cve_results = await cve_engine.check_cves_for_assets(tech_assets)
             all_results.extend(cve_results)
+
+        # OSINT
+        if profile.get("osint") and scan_type in ("full", "discovery"):
+            await update_progress(db, job, 97, "Running OSINT reconnaissance...")
+            await notify_clients(target_id, job)
+            try:
+                osint_results = await osint_engine.run_osint(domain)
+                all_results.extend(osint_results)
+            except Exception:
+                pass
 
         # Save results
         new_assets = []
