@@ -3,349 +3,94 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>ASM - Attack Surface Manager</title>
-<style>
-*{margin:0;padding:0;box-sizing:border-box}
-body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#0f172a;color:#e2e8f0}
-.container{max-width:1400px;margin:0 auto;padding:20px}
-header{background:#1e293b;padding:16px 0;border-bottom:1px solid #334155;position:sticky;top:0;z-index:100}
-header .container{display:flex;justify-content:space-between;align-items:center}
-header h1{color:#38bdf8;font-size:22px;cursor:pointer}
-header nav{display:flex;gap:8px}
-header nav button{background:#334155;color:#e2e8f0;border:none;padding:8px 16px;border-radius:6px;cursor:pointer;font-size:13px}
-header nav button:hover{background:#475569}
-header nav button.active{background:#38bdf8;color:#0f172a}
-.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin:16px 0}
-.stat-card{background:#1e293b;padding:16px;border-radius:8px;border:1px solid #334155}
-.stat-card h3{color:#94a3b8;font-size:13px;margin-bottom:6px}
-.stat-card .value{font-size:28px;font-weight:bold;color:#38bdf8}
-.stat-card .sub{font-size:11px;color:#64748b;margin-top:4px}
-.section{background:#1e293b;padding:20px;border-radius:8px;border:1px solid #334155;margin-bottom:16px;display:none}
-.section.active{display:block}
-.section h2{color:#38bdf8;margin-bottom:16px;font-size:18px;display:flex;justify-content:space-between;align-items:center}
-table{width:100%;border-collapse:collapse;font-size:13px}
-th,td{padding:10px;text-align:left;border-bottom:1px solid #334155}
-th{color:#94a3b8;font-weight:600;font-size:12px;text-transform:uppercase;letter-spacing:0.5px}
-tr:hover{background:#1e293b}
-.form-row{display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap;align-items:center}
-input[type="text"],input[type="email"],input[type="password"],input[type="url"],input[type="number"],select{background:#0f172a;border:1px solid #334155;color:#e2e8f0;padding:10px 12px;border-radius:6px;font-size:13px;outline:none}
-input[type="text"]:focus,input[type="email"]:focus,input[type="password"]:focus,select:focus{border-color:#38bdf8}
-input[type="text"]{width:300px}
-input.small{width:200px}
-.btn{background:#38bdf8;color:#0f172a;border:none;padding:10px 20px;border-radius:6px;cursor:pointer;font-weight:600;font-size:13px}
-.btn:hover{background:#7dd3fc}
-.btn-danger{background:#ef4444;color:white}
-.btn-danger:hover{background:#f87171}
-.btn-scan{background:#22c55e;color:white}
-.btn-scan:hover{background:#4ade80}
-.btn-warn{background:#f59e0b;color:#000}
-.btn-warn:hover{background:#fbbf24}
-.btn-sm{padding:6px 12px;font-size:12px}
-.badge{padding:3px 8px;border-radius:4px;font-size:11px;font-weight:600;display:inline-block}
-.badge-subdomain{background:#3b82f6}
-.badge-port{background:#f59e0b;color:#000}
-.badge-certificate{background:#8b5cf6}
-.badge-technology{background:#10b981}
-.badge-vulnerability{background:#ef4444}
-.badge-dns_record{background:#6366f1}
-.badge-running{background:#22c55e}
-.badge-completed{background:#3b82f6}
-.badge-failed{background:#ef4444}
-.badge-pending{background:#f59e0b;color:#000}
-.badge-critical{background:#dc2626}
-.badge-high{background:#ef4444}
-.badge-medium{background:#f59e0b;color:#000}
-.badge-low{background:#22c55e}
-.badge-info{background:#6366f1}
-.tabs{display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap}
-.tab{padding:6px 14px;border-radius:6px;cursor:pointer;background:#334155;font-size:12px;border:none;color:#e2e8f0}
-.tab.active{background:#38bdf8;color:#0f172a}
-.pagination{display:flex;gap:4px;justify-content:center;margin-top:12px;align-items:center;font-size:13px}
-.pagination button{background:#334155;border:none;color:#e2e8f0;padding:6px 12px;border-radius:4px;cursor:pointer}
-.pagination button:disabled{opacity:0.4;cursor:default}
-.pagination span{margin:0 8px;color:#94a3b8}
-.modal{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.6);display:flex;align-items:center;justify-content:center;z-index:999}
-.modal-content{background:#1e293b;padding:24px;border-radius:12px;border:1px solid #334155;min-width:400px;max-width:600px;max-height:80vh;overflow-y:auto}
-.modal-content h2{color:#38bdf8;margin-bottom:16px}
-.modal-content .form-row{margin-bottom:12px}
-.modal-content label{display:block;color:#94a3b8;font-size:12px;margin-bottom:4px}
-.modal-content input,.modal-content select{width:100%}
-.progress-bar{background:#334155;border-radius:8px;height:24px;overflow:hidden;position:relative;margin:8px 0}
-.progress-fill{background:linear-gradient(90deg,#22c55e,#38bdf8);height:100%;transition:width 0.5s;border-radius:8px}
-.progress-text{position:absolute;top:0;left:50%;transform:translateX(-50%);font-size:12px;font-weight:600;line-height:24px;color:#fff;text-shadow:0 1px 2px rgba(0,0,0,0.5)}
-.graph-container{width:100%;height:400px;background:#0f172a;border-radius:8px;overflow:hidden}
-.empty-state{text-align:center;padding:40px;color:#64748b}
-.empty-state p{font-size:16px;margin-bottom:8px}
-.side-by-side{display:grid;grid-template-columns:1fr 1fr;gap:16px}
-@media(max-width:768px){.side-by-side{grid-template-columns:1fr}}
-.risk-score{display:inline-flex;align-items:center;gap:4px;font-weight:700;font-size:13px}
-.risk-critical{color:#dc2626}.risk-high{color:#ef4444}.risk-medium{color:#f59e0b}.risk-low{color:#22c55e}.risk-none{color:#64748b}
-.toast{position:fixed;bottom:20px;right:20px;padding:12px 20px;border-radius:8px;color:#fff;font-size:13px;z-index:9999;animation:slideIn 0.3s}
-.toast.success{background:#22c55e}.toast.error{background:#ef4444}.toast.info{background:#3b82f6}
-@keyframes slideIn{from{transform:translateX(100%);opacity:0}to{transform:translateX(0);opacity:1}}
-.spinner{display:inline-block;width:16px;height:16px;border:2px solid #334155;border-top-color:#38bdf8;border-radius:50%;animation:spin 0.6s linear infinite}
-@keyframes spin{to{transform:rotate(360deg)}}
-</style>
+<title>ASM — Attack Surface Manager</title>
+<link rel="stylesheet" href="/static/css/style.css">
 </head>
 <body>
-<header><div class="container"><h1 onclick="showPage('dashboard')">Attack Surface Manager</h1><nav>
-<button class="active" onclick="showPage('dashboard')" data-page="dashboard">Dashboard</button>
-<button onclick="showPage('targets')" data-page="targets">Targets</button>
-<button onclick="showPage('assets')" data-page="assets">Assets</button>
-<button onclick="showPage('scans')" data-page="scans">Scans</button>
-<button onclick="showPage('alerts')" data-page="alerts">Alerts</button>
-<button onclick="showPage('settings')" data-page="settings">Settings</button>
-</nav></div></header>
 
-<div class="container" id="app">
-
-<div class="stats" id="stats"></div>
-
-<div id="page-dashboard" class="section active">
-<h2>Overview</h2>
-<div class="side-by-side">
-<div><h3 style="color:#94a3b8;font-size:14px;margin-bottom:8px">Recent Alerts</h3><div id="recent-alerts"></div></div>
-<div><h3 style="color:#94a3b8;font-size:14px;margin-bottom:8px">Top Risky Targets</h3><div id="top-risky"></div></div>
-</div>
+<div id="particles">
+  <div class="particle"></div><div class="particle"></div><div class="particle"></div>
+  <div class="particle"></div><div class="particle"></div><div class="particle"></div>
+  <div class="particle"></div><div class="particle"></div>
 </div>
 
-<div id="page-targets" class="section">
-<h2>Targets <span id="target-count" style="font-size:13px;color:#94a3b8"></span></h2>
-<div class="form-row">
-<input type="text" id="domainInput" placeholder="example.com"><input type="text" id="descInput" class="small" placeholder="Description (optional)">
-<button class="btn" onclick="addTarget()">Add Target</button>
-</div>
-<div class="form-row">
-<input type="text" id="targetSearch" placeholder="Search targets..." style="width:250px" oninput="loadTargets()">
-<select id="targetPerPage" onchange="loadTargets()"><option value="10">10</option><option value="20" selected>20</option><option value="50">50</option></select>
-<button class="btn btn-warn btn-sm" onclick="exportTargets()">Export CSV</button>
-</div>
-<table><thead><tr><th>ID</th><th>Domain</th><th>Description</th><th>Tags</th><th>Risk</th><th>Assets</th><th>High Risk</th><th>Last Scanned</th><th>Actions</th></tr></thead><tbody id="targetsTable"></tbody></table>
-<div class="pagination" id="targetPagination"></div>
-</div>
+<header>
+  <div class="inner">
+    <div class="logo" onclick="showPage('hero')">ASM <span>v2</span></div>
+    <nav>
+      <button class="active" onclick="showPage('target-list')">Targets</button>
+      <button onclick="showPage('hero')">Home</button>
+    </nav>
+  </div>
+</header>
 
-<div id="page-assets" class="section">
-<h2>Assets</h2>
-<div class="form-row">
-<select id="assetTargetFilter" onchange="loadAssets()"><option value="">All Targets</option></select>
-<div class="tabs">
-<button class="tab active" onclick="filterAssets('all')">All</button>
-<button class="tab" onclick="filterAssets('subdomain')">Subdomains</button>
-<button class="tab" onclick="filterAssets('port')">Ports</button>
-<button class="tab" onclick="filterAssets('certificate')">Certs</button>
-<button class="tab" onclick="filterAssets('technology')">Tech</button>
-<button class="tab" onclick="filterAssets('vulnerability')">Vulns</button>
-<button class="tab" onclick="filterAssets('dns_record')">DNS</button>
-</div>
-<input type="text" id="assetSearch" placeholder="Search assets..." style="width:200px" oninput="loadAssets()">
-<select id="riskFilter" onchange="loadAssets()"><option value="">All Risk</option><option value="7">High (7+)</option><option value="4">Medium (4+)</option></select>
-<select id="assetPerPage" onchange="loadAssets()"><option value="25">25</option><option value="50" selected>50</option><option value="100">100</option></select>
-<button class="btn btn-warn btn-sm" onclick="exportAssets()">Export CSV</button>
-</div>
-<table><thead><tr><th>Type</th><th>Value</th><th>Target</th><th>Details</th><th>Risk</th><th>Tags</th><th>Discovered</th><th>Actions</th></tr></thead><tbody id="assetsTable"></tbody></table>
-<div class="pagination" id="assetPagination"></div>
+<!-- ═══ HERO ═══ -->
+<div id="page-hero" class="page active">
+  <div class="hero">
+    <div class="hero-badge">🔒 Open Source Attack Surface Management</div>
+    <h1>Discover Your<br>Attack Surface</h1>
+    <p>Enter a domain to uncover subdomains, ports, technologies, certificates, vulnerabilities, and more — all in seconds.</p>
+    <div class="hero-input-wrap">
+      <input id="heroInput" type="text" placeholder="example.com" autofocus>
+      <button onclick="addTargetFromHero()">Analyze →</button>
+    </div>
+    <div class="hero-stats">
+      <div><div class="num" id="hero-targets">0</div><div class="label">Targets</div></div>
+      <div><div class="num" id="hero-assets">0</div><div class="label">Assets Found</div></div>
+      <div><div class="num" id="hero-scans">0</div><div class="label">Scans Done</div></div>
+    </div>
+    <div class="scroll-indicator" onclick="showPage('target-list')">
+      <span>View Targets</span>
+      <div class="arrow"></div>
+    </div>
+  </div>
 </div>
 
-<div id="page-scans" class="section">
-<h2>Scan Jobs <span id="scan-count" style="font-size:13px;color:#94a3b8"></span></h2>
-<div class="form-row">
-<select id="scanTargetFilter" onchange="loadScans()"><option value="">All Targets</option></select>
-<select id="scanStatusFilter" onchange="loadScans()"><option value="">All Status</option><option value="running">Running</option><option value="completed">Completed</option><option value="failed">Failed</option></select>
-</div>
-<table><thead><tr><th>ID</th><th>Target</th><th>Type</th><th>Profile</th><th>Status</th><th>Progress</th><th>Results</th><th>Started</th><th>Completed</th></tr></thead><tbody id="scansTable"></tbody></table>
-<div class="pagination" id="scanPagination"></div>
-</div>
-
-<div id="page-alerts" class="section">
-<h2>Alerts <button class="btn btn-sm" onclick="markAllRead()">Mark All Read</button></h2>
-<div class="form-row">
-<input type="text" id="alertWebhookUrl" placeholder="Slack/Discord webhook URL" style="width:350px">
-<select id="alertChannel"><option value="slack">Slack</option><option value="discord">Discord</option><option value="email">Email</option></select>
-<input type="text" id="alertName" placeholder="Alert name" style="width:200px">
-<button class="btn btn-sm" onclick="addAlertConfig()">Add Webhook</button>
-</div>
-<div id="alertConfigs"></div>
-<table><thead><tr><th>Severity</th><th>Title</th><th>Message</th><th>Time</th><th>Read</th></tr></thead><tbody id="alertsTable"></tbody></table>
-<div class="pagination" id="alertPagination"></div>
+<!-- ═══ TARGET LIST ═══ -->
+<div id="page-target-list" class="page">
+  <div class="page-inner">
+    <div class="page-header">
+      <h1>🔭 Targets <span style="font-size:16px;font-weight:400;color:var(--text3)" id="totalTargets"></span></h1>
+      <div class="sub">Add a domain or choose an existing one to dive deep</div>
+    </div>
+    <div class="form-row" style="margin-bottom:20px">
+      <input id="targetInput" type="text" placeholder="Add new target..." style="flex:1;max-width:400px">
+      <button class="btn" onclick="addTargetFromList()">Add</button>
+      <input type="text" placeholder="Search..." oninput="searchTargets()" style="max-width:200px;margin-left:auto">
+    </div>
+    <div id="targetGrid" class="target-grid stagger"></div>
+  </div>
 </div>
 
-<div id="page-settings" class="section">
-<h2>Settings</h2>
-<div class="side-by-side">
-<div><h3 style="color:#94a3b8;font-size:14px;margin-bottom:8px">Scan Profiles</h3><div id="profileList"></div></div>
-<div><h3 style="color:#94a3b8;font-size:14px;margin-bottom:8px">Export</h3>
-<div style="margin-top:8px"><button class="btn btn-sm" onclick="exportTargets()">Targets (CSV)</button>
-<button class="btn btn-sm" onclick="exportAssets()">Assets (CSV)</button>
-<button class="btn btn-sm" onclick="exportAlerts()">Alerts (JSON)</button>
-<button class="btn btn-sm" onclick="exportReport()">Report (JSON)</button></div>
-</div></div>
-<div style="margin-top:16px"><h3 style="color:#94a3b8;font-size:14px;margin-bottom:8px">API Keys</h3><div id="apiKeys"></div></div>
-<div style="margin-top:16px"><h3 style="color:#94a3b8;font-size:14px;margin-bottom:8px">Network Graph</h3>
-<p style="color:#64748b;font-size:13px;margin-bottom:8px">Enter target ID to visualize:</p>
-<div class="form-row"><input type="number" id="graphTargetId" placeholder="Target ID" style="width:120px"><button class="btn btn-sm" onclick="loadGraph()">Render</button></div>
-<div class="graph-container" id="graphContainer"><canvas id="graphCanvas"></canvas></div></div>
+<!-- ═══ TARGET DETAIL ═══ -->
+<div id="page-target-detail" class="page">
+  <div class="page-inner">
+    <button class="back-btn" onclick="showPage('target-list')">← Back to Targets</button>
+    <div class="page-header">
+      <h1 id="detailTitle">Loading...</h1>
+      <div class="sub" id="detailSubtitle"></div>
+    </div>
+    <div style="display:flex;gap:10px;margin-bottom:20px;flex-wrap:wrap">
+      <button class="btn" onclick="runDetailScan()">🔄 Run Scan</button>
+      <button class="btn btn-outline" onclick="loadDetailAssets(detailTargetId)">🔄 Refresh</button>
+      <span style="margin-left:auto;display:flex;align-items:center;gap:6px;font-size:14px">Risk Score: <strong id="detailRisk"></strong></span>
+    </div>
+    <div id="detailStats" class="stats-grid"></div>
+    <div class="section">
+      <h2>📦 Assets <span>discovered for this target</span></h2>
+      <div class="card" style="padding:0;overflow:hidden" id="detailAssets"></div>
+    </div>
+    <div class="section">
+      <h2>📋 Scans <span>history</span></h2>
+      <div class="card" style="padding:0;overflow:hidden" id="detailScans"></div>
+    </div>
+    <div class="section">
+      <h2>📊 Classification <span>risk breakdown</span></h2>
+      <div class="card" id="detailClassification"></div>
+    </div>
+  </div>
 </div>
 
-</div>
-
-<div id="assetModal" class="modal" style="display:none" onclick="if(event.target===this)closeModal('assetModal')">
-<div class="modal-content">
-<h2 id="modalTitle">Asset Detail</h2>
-<div id="modalBody"></div>
-<button class="btn btn-sm" onclick="closeModal('assetModal')">Close</button>
-</div></div>
-
-<div id="scanModal" class="modal" style="display:none" onclick="if(event.target===this)closeModal('scanModal')">
-<div class="modal-content">
-<h2>Running Scan</h2>
-<div class="progress-bar"><div class="progress-fill" id="scanProgressFill" style="width:0%"></div><div class="progress-text" id="scanProgressText">0%</div></div>
-<p id="scanProgressMsg" style="color:#94a3b8;font-size:13px;margin-top:4px">Initializing...</p>
-<button class="btn btn-sm" onclick="closeModal('scanModal')">Close</button>
-</div></div>
-
-<script>
-const API='/api';let state={targets:[],assets:[],alerts:[],scans:[],currentAssetFilter:'all',ws:null,scanTargets:{}};
-
-function toast(msg,type='success'){const t=document.createElement('div');t.className=`toast ${type}`;t.textContent=msg;document.body.appendChild(t);setTimeout(()=>t.remove(),3000)}
-
-function showPage(page){document.querySelectorAll('nav button').forEach(b=>b.classList.toggle('active',b.dataset.page===page));document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));const el=document.getElementById(`page-${page}`);if(el)el.classList.add('active');if(page==='targets')loadTargets();if(page==='assets')loadAssetTargets();if(page==='scans')loadScanTargets();if(page==='alerts'){loadAlerts();loadAlertConfigs()}if(page==='settings'){loadProfiles();loadApiKeys()}}
-
-function closeModal(id){document.getElementById(id).style.display='none'}
-
-// ─── Dashboard ───
-async function loadDashboard(){try{
-const r=await fetch(`${API}/dashboard`);const d=await r.json();
-document.getElementById('stats').innerHTML=`
-<div class="stat-card"><h3>Targets</h3><div class="value">${d.total_targets}</div></div>
-<div class="stat-card"><h3>Assets</h3><div class="value">${d.total_assets}</div><div class="sub">${Object.entries(d.assets_by_type||{}).filter(([_,c])=>c>0).map(([t,c])=>`${t}: ${c}`).join(', ')}</div></div>
-<div class="stat-card"><h3>Vulnerabilities</h3><div class="value">${d.assets_by_type?.vulnerability||0}</div></div>
-<div class="stat-card"><h3>Scans Completed</h3><div class="value">${d.completed_scans||0}</div><div class="sub">${d.total_scans||0} total</div></div>
-<div class="stat-card"><h3>High Risk</h3><div class="value risk-high">${d.high_risk_assets||0}</div><div class="sub">Medium: ${d.medium_risk_assets||0}</div></div>
-<div class="stat-card"><h3>Alerts</h3><div class="value">${d.unread_alerts||0}</div><div class="sub">unread</div></div>`;
-document.getElementById('recent-alerts').innerHTML=(d.recent_alerts||[]).length?`<table><tr><th>Severity</th><th>Title</th><th>Time</th></tr>${d.recent_alerts.map(a=>`<tr><td><span class="badge badge-${a.severity}">${a.severity}</span></td><td>${a.title}</td><td style="font-size:11px;color:#64748b">${new Date(a.created_at).toLocaleString()}</td></tr>`).join('')}</table>`:'<div class="empty-state"><p>No recent alerts</p></div>';
-document.getElementById('top-risky').innerHTML=(d.top_risky_targets||[]).length?`<table><tr><th>Domain</th><th>Risk</th></tr>${d.top_risky_targets.map(t=>`<tr><td>${t.domain}</td><td><span class="risk-score risk-${t.risk_score>=7?'high':t.risk_score>=4?'medium':'none'}">${t.risk_score||0}</span></td></tr>`).join('')}</table>`:'<div class="empty-state"><p>No targets yet</p></div>';
-}catch(e){console.error(e)}}
-
-// ─── Targets ───
-async function loadTargets(){try{
-const search=document.getElementById('targetSearch').value;const perPage=document.getElementById('targetPerPage').value;
-const r=await fetch(`${API}/targets?search=${encodeURIComponent(search)}&page=${state.targetPage||1}&per_page=${perPage}`);
-const d=await r.json();state.targets=d.targets;
-document.getElementById('targetsTable').innerHTML=d.targets.map(t=>`<tr>
-<td>${t.id}</td><td><strong>${t.domain}</strong></td><td style="color:#94a3b8;font-size:12px">${t.description||'-'}</td>
-<td>${(t.tags||[]).map(tg=>`<span class="badge badge-info">${tg}</span>`).join(' ')}</td>
-<td><span class="risk-score risk-${t.risk_score>=7?'high':t.risk_score>=4?'medium':'none'}">${t.risk_score||0}</span></td>
-<td>${t.asset_count||0}</td><td>${t.high_risk_count||0}</td>
-<td style="font-size:11px;color:#64748b">${t.last_scanned?new Date(t.last_scanned).toLocaleString():'Never'}</td>
-<td><button class="btn btn-scan btn-sm" onclick="runScan(${t.id})">Scan</button>
-<button class="btn btn-sm" onclick="editTarget(${t.id})">Edit</button>
-<button class="btn btn-danger btn-sm" onclick="deleteTarget(${t.id})">Del</button></td></tr>`).join('');
-renderPagination('target',d.total,perPage);
-document.getElementById('target-count').textContent=`(${d.total} total)`;
-}catch(e){console.error(e)}}
-
-function renderPagination(prefix,total,perPage){const el=document.getElementById(`${prefix}Pagination`);if(!el)return;const page=state[`${prefix}Page`]||1;const pages=Math.ceil(total/perPage);el.innerHTML=`<button onclick="state.${prefix}Page=Math.max(1,${page}-1);load${prefix.charAt(0).toUpperCase()+prefix.slice(1)}()" ${page<=1?'disabled':''}>&laquo;</button><span>Page ${page} of ${pages||1}</span><button onclick="state.${prefix}Page=Math.min(${pages||1},${page}+1);load${prefix.charAt(0).toUpperCase()+prefix.slice(1)}()" ${page>=pages?'disabled':''}>&raquo;</button>`}
-
-async function addTarget(){const domain=document.getElementById('domainInput').value.trim();const desc=document.getElementById('descInput').value.trim();if(!domain)return;try{await fetch(`${API}/targets`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({domain,description:desc||null})});document.getElementById('domainInput').value='';document.getElementById('descInput').value='';toast('Target added');loadTargets();loadDashboard()}catch(e){toast('Failed to add target','error')}}
-
-async function deleteTarget(id){if(!confirm('Delete this target and all its assets?'))return;try{await fetch(`${API}/targets/${id}`,{method:'DELETE'});toast('Target deleted');loadTargets();loadDashboard()}catch(e){toast('Delete failed','error')}}
-
-async function editTarget(id){const t=state.targets.find(x=>x.id===id);if(!t)return;const tags=prompt('Tags (comma separated):',(t.tags||[]).join(', '));const desc=prompt('Description:',t.description||'');try{await fetch(`${API}/targets/${id}`,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({description:desc||null,tags:tags?tags.split(',').map(s=>s.trim()).filter(Boolean):[]})});toast('Target updated');loadTargets()}catch(e){toast('Update failed','error')}}
-
-// ─── Assets ───
-async function loadAssetTargets(){try{const r=await fetch(`${API}/targets?per_page=100`);const d=await r.json();const sel=document.getElementById('assetTargetFilter');sel.innerHTML='<option value="">All Targets</option>'+d.targets.map(t=>`<option value="${t.id}">${t.domain}</option>`).join('')}catch(e){}}
-async function loadScanTargets(){try{const r=await fetch(`${API}/targets?per_page=100`);const d=await r.json();const sel=document.getElementById('scanTargetFilter');sel.innerHTML='<option value="">All Targets</option>'+d.targets.map(t=>`<option value="${t.id}">${t.domain}</option>`).join('')}catch(e){}}
-
-async function loadAssets(){try{
-const targetId=document.getElementById('assetTargetFilter').value;const search=document.getElementById('assetSearch').value;const riskMin=document.getElementById('riskFilter').value;const perPage=document.getElementById('assetPerPage').value;const type=state.currentAssetFilter==='all'?'':state.currentAssetFilter;
-let url=`${API}/targets/${targetId||'1'}/assets?per_page=${perPage}&page=${state.assetPage||1}`;if(type)url+=`&asset_type=${type}`;if(search)url+=`&search=${encodeURIComponent(search)}`;if(riskMin)url+=`&risk_min=${riskMin}`;
-const r=await fetch(url);const d=await r.json();
-document.getElementById('assetsTable').innerHTML=(d.assets||[]).map(a=>`<tr>
-<td><span class="badge badge-${a.asset_type}">${a.asset_type}</span></td>
-<td><a href="#" onclick="showAssetDetail(${a.id});return false">${a.value}</a></td>
-<td style="font-size:12px;color:#94a3b8">${a.target?.domain||'-'}</td>
-<td style="font-size:12px;color:#94a3b8;max-width:200px;overflow:hidden;text-overflow:ellipsis">${a.details?.substring(0,80)||'-'}</td>
-<td><span class="risk-score risk-${a.risk_score>=7?'high':a.risk_score>=4?'medium':'none'}">${a.risk_score||0}</span></td>
-<td>${(a.tags||[]).map(t=>`<span class="badge badge-info">${t}</span>`).join(' ')}</td>
-<td style="font-size:11px;color:#64748b">${new Date(a.discovered_at).toLocaleDateString()}</td>
-<td><button class="btn btn-sm" onclick="editAsset(${a.id})">Edit</button>
-<button class="btn btn-danger btn-sm" onclick="deleteAsset(${a.id})">Del</button></td></tr>`).join('');
-renderPagination('asset',d.total,perPage);
-}catch(e){console.error(e)}}
-
-function filterAssets(type){state.currentAssetFilter=type;document.querySelectorAll('#page-assets .tab').forEach(t=>t.classList.toggle('active',t.textContent.trim().toLowerCase()===type||(type==='all'&&t.textContent.trim()==='All')));state.assetPage=1;loadAssets()}
-
-async function showAssetDetail(id){try{const r=await fetch(`${API}/assets/${id}/history`);const history=await r.json();document.getElementById('modalTitle').textContent=`Asset #${id}`;document.getElementById('modalBody').innerHTML=history.length?`<table><tr><th>Field</th><th>Change</th><th>Time</th></tr>${history.map(h=>`<tr><td>${h.field_changed}</td><td>${h.old_value||''} → ${h.new_value||''}</td><td style="font-size:11px;color:#64748b">${new Date(h.changed_at).toLocaleString()}</td></tr>`).join('')}</table>`:'<p style="color:#64748b">No history available</p>';document.getElementById('assetModal').style.display='flex'}catch(e){toast('Failed to load asset','error')}}
-
-async function editAsset(id){const tags=prompt('Tags (comma separated):','');try{await fetch(`${API}/assets/${id}`,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({tags:tags?tags.split(',').map(s=>s.trim()).filter(Boolean):[]})});toast('Asset updated');loadAssets()}catch(e){toast('Update failed','error')}}
-
-async function deleteAsset(id){if(!confirm('Delete this asset?'))return;try{await fetch(`${API}/assets/${id}`,{method:'DELETE'});toast('Asset deleted');loadAssets()}catch(e){toast('Delete failed','error')}}
-
-async function exportAssets(){window.open(`${API}/export/assets?format=csv&target_id=${document.getElementById('assetTargetFilter').value||''}`,'_blank')}
-async function exportTargets(){window.open(`${API}/export/targets?format=csv`,'_blank')}
-async function exportAlerts(){window.open(`${API}/export/alerts`,'_blank')}
-async function exportReport(){window.open(`${API}/export/report`,'_blank')}
-
-// ─── Scans ───
-async function loadScans(){try{
-const targetId=document.getElementById('scanTargetFilter').value;const status=document.getElementById('scanStatusFilter').value;
-let url=`${API}/jobs?page=${state.scanPage||1}&per_page=20`;if(targetId)url+=`&target_id=${targetId}`;if(status)url+=`&status=${status}`;
-const r=await fetch(url);const d=await r.json();
-document.getElementById('scansTable').innerHTML=d.jobs.map(j=>`<tr>
-<td>${j.id}</td><td>${j.target_domain||'N/A'}</td><td>${j.scan_type}</td><td>${j.scan_profile||'-'}</td>
-<td><span class="badge badge-${j.status}">${j.status}</span></td>
-<td>${j.status==='running'?`<div class="progress-bar" style="height:16px"><div class="progress-fill" style="width:${j.progress||0}%"></div><div class="progress-text" style="font-size:10px;line-height:16px">${Math.round(j.progress||0)}%</div></div>`:`${j.results_count||0} results`}</td>
-<td>${j.results_count||0}</td>
-<td style="font-size:11px;color:#64748b">${j.started_at?new Date(j.started_at).toLocaleString():'-'}</td>
-<td style="font-size:11px;color:#64748b">${j.completed_at?new Date(j.completed_at).toLocaleString():'-'}</td></tr>`).join('');
-document.getElementById('scan-count').textContent=`(${d.total} total)`;
-renderPagination('scan',d.total,20);
-}catch(e){console.error(e)}}
-
-async function runScan(id){try{
-const r=await fetch(`${API}/targets/${id}/scan`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({scan_type:'full',scan_profile:'standard'})});
-const d=await r.json();toast(`Scan started: job #${d.job_id}`);loadDashboard();loadScans();
-if(d.status==='running'){document.getElementById('scanModal').style.display='flex';connectWebSocket(id,d.job_id)}
-}catch(e){toast('Scan failed to start','error')}}
-
-function connectWebSocket(targetId,jobId){if(state.ws)state.ws.close();state.ws=new WebSocket(`ws://${location.host}${API}/ws/${targetId}`);state.ws.onmessage=function(e){try{const d=JSON.parse(e.data);if(d.job_id===jobId){document.getElementById('scanProgressFill').style.width=d.progress+'%';document.getElementById('scanProgressText').textContent=Math.round(d.progress)+'%';document.getElementById('scanProgressMsg').textContent=d.progress_message||'';if(d.status==='completed'){closeModal('scanModal');toast('Scan completed!');loadDashboard();loadAssets();loadScans()}else if(d.status==='failed'){closeModal('scanModal');toast('Scan failed','error');loadScans()}}}catch(e){}};state.ws.onclose=function(){}}
-
-// ─── Alerts ───
-async function loadAlerts(){try{
-const r=await fetch(`${API}/alerts?page=${state.alertPage||1}&per_page=50`);const d=await r.json();
-document.getElementById('alertsTable').innerHTML=d.alerts.map(a=>`<tr onclick="${a.is_read?'':'markRead('+a.id+')'}" style="cursor:pointer;${a.is_read?'opacity:0.6':''}">
-<td><span class="badge badge-${a.severity}">${a.severity}</span></td>
-<td>${a.title}</td><td style="font-size:12px;color:#94a3b8">${(a.message||'').substring(0,100)}</td>
-<td style="font-size:11px;color:#64748b">${new Date(a.created_at).toLocaleString()}</td>
-<td>${a.is_read?'✓':''}</td></tr>`).join('');
-renderPagination('alert',d.total,50);
-}catch(e){console.error(e)}}
-
-async function markRead(id){try{await fetch(`${API}/alerts/${id}/read`,{method:'POST'});loadAlerts();loadDashboard()}catch(e){}}
-async function markAllRead(){try{await fetch(`${API}/alerts/read-all`,{method:'POST'});toast('All marked read');loadAlerts();loadDashboard()}catch(e){}}
-
-async function addAlertConfig(){const name=document.getElementById('alertName').value.trim();const url=document.getElementById('alertWebhookUrl').value.trim();const channel=document.getElementById('alertChannel').value;if(!name||!url)return toast('Fill in name and URL','error');try{await fetch(`${API}/alert-configs`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name,channel,config:{webhook_url:url},events:['new_asset','cert_expiry']})});document.getElementById('alertName').value='';document.getElementById('alertWebhookUrl').value='';toast('Alert config added');loadAlertConfigs()}catch(e){toast('Failed to add','error')}}
-
-async function loadAlertConfigs(){try{const r=await fetch(`${API}/alert-configs`);const d=await r.json();document.getElementById('alertConfigs').innerHTML=d.length?`<table><tr><th>Name</th><th>Channel</th><th>Events</th><th>Actions</th></tr>${d.map(a=>`<tr><td>${a.name}</td><td>${a.channel}</td><td>${(a.events||[]).join(', ')}</td><td><button class="btn btn-danger btn-sm" onclick="deleteAlertConfig(${a.id})">Del</button></td></tr>`).join('')}</table>`:'<p style="color:#64748b;font-size:13px">No webhooks configured</p>'}catch(e){}}
-async function deleteAlertConfig(id){try{await fetch(`${API}/alert-configs/${id}`,{method:'DELETE'});toast('Deleted');loadAlertConfigs()}catch(e){}}
-
-// ─── Settings ───
-async function loadProfiles(){try{const r=await fetch(`${API}/scan-profiles`);const d=await r.json();document.getElementById('profileList').innerHTML=d.map(p=>`<div style="background:#0f172a;padding:12px;border-radius:6px;margin-bottom:8px"><strong style="color:#38bdf8">${p.name}</strong><p style="color:#94a3b8;font-size:12px;margin-top:4px">${p.description}</p></div>`).join('')}catch(e){}}
-
-async function loadApiKeys(){document.getElementById('apiKeys').innerHTML='<p style="color:#64748b;font-size:13px">Set up authentication to manage API keys</p>'}
-
-// ─── Graph ───
-async function loadGraph(){const id=document.getElementById('graphTargetId').value;if(!id)return;try{const r=await fetch(`${API}/targets/${id}/graph`);const d=await r.json();const canvas=document.getElementById('graphCanvas');const ctx=canvas.getContext('2d');canvas.width=canvas.parentElement.clientWidth;canvas.height=400;
-ctx.fillStyle='#0f172a';ctx.fillRect(0,0,canvas.width,canvas.height);
-const nodes=d.nodes||[];const edges=d.edges||[];if(!nodes.length){ctx.fillStyle='#64748b';ctx.font='14px sans-serif';ctx.textAlign='center';ctx.fillText('No data',canvas.width/2,canvas.height/2);return}
-const cx=canvas.width/2,cy=canvas.height/2;const radius=Math.min(cx,cy)-60;
-const layout={};nodes.forEach((n,i)=>{const angle=(i/nodes.length)*2*Math.PI-Math.PI/2;layout[n.id]={x:cx+radius*Math.cos(angle),y:cy+radius*Math.sin(angle)}});
-edges.forEach(e=>{const s=layout[e.source],t=layout[e.target];if(s&&t){ctx.beginPath();ctx.strokeStyle='#334155';ctx.lineWidth=1;ctx.moveTo(s.x,s.y);ctx.lineTo(t.x,t.y);ctx.stroke()}});
-const colors={target:'#38bdf8',subdomain:'#3b82f6',port:'#f59e0b',certificate:'#8b5cf6',technology:'#10b981',vulnerability:'#ef4444',dns_record:'#6366f1'};
-nodes.forEach(n=>{const p=layout[n.id];if(!p)return;ctx.beginPath();ctx.arc(p.x,p.y,8,0,2*Math.PI);ctx.fillStyle=colors[n.type]||'#64748b';ctx.fill();ctx.strokeStyle='#1e293b';ctx.lineWidth=2;ctx.stroke();ctx.fillStyle='#e2e8f0';ctx.font='11px sans-serif';ctx.textAlign='center';ctx.fillText(n.label.substring(0,25),p.x,p.y-14)})
-}catch(e){toast('Failed to load graph','error')}}
-
-// ─── Init ───
-loadDashboard();loadTargets();setInterval(()=>{loadDashboard()},15000);
-</script>
-</body></html>
+<script src="/static/js/app.js"></script>
+</body>
+</html>
