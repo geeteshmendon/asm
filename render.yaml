@@ -1,0 +1,11 @@
+services:
+  - type: web
+    name: asm
+    runtime: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: ASM_SECRET_KEY
+        generateValue: true
+      - key: ASM_ALLOWED_ORIGINS
+        value: https://asm.onrender.com
