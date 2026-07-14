@@ -108,12 +108,13 @@ $('targetInput')?.addEventListener('keydown', async e => {
 // ─── PAGE 3: COMPREHENSIVE TARGET REPORT ───
 let detailId = null;
 
+function safe(id) { const e = $(id); return e || { innerHTML: '', textContent: '', style: {} } }
+
 async function loadTargetDetail(id) {
   detailId = id;
-  // Show loading state
-  $('detailBody').innerHTML = `<div style="text-align:center;padding:60px"><div class="spinner" style="width:32px;height:32px;margin:0 auto 16px"></div><p style="color:var(--text3)">Loading comprehensive report...</p></div>`;
+  const body = safe('detailBody');
+  body.innerHTML = `<div style="text-align:center;padding:60px"><div class="spinner" style="width:32px;height:32px;margin:0 auto 16px"></div><p style="color:var(--text3)">Loading comprehensive report...</p></div>`;
   try {
-    // Fetch report and raw data in parallel
     const [reportRes, assetsRes, scansRes] = await Promise.all([
       fetch(`${API}/targets/${id}/report`).then(r => r.json()),
       fetch(`${API}/targets/${id}/assets?per_page=500`).then(r => r.json()),
@@ -123,14 +124,16 @@ async function loadTargetDetail(id) {
     const allAssets = assetsRes.assets || [];
     const allScans = scansRes.jobs || [];
 
-    $('detailTitle').textContent = r.domain;
-    $('detailRating').textContent = r.security_rating;
-    $('detailRating').style.color = r.security_rating === 'A' ? '#22c55e' : r.security_rating === 'B' ? '#3b82f6' : r.security_rating === 'C' ? '#f59e0b' : '#ef4444';
+    if (!r || r.detail) throw new Error(r?.detail || 'Invalid report data');
 
-    // Stats cards
+    safe('detailTitle').textContent = r.domain || 'Unknown';
+    safe('detailRating').textContent = r.security_rating || 'N/A';
+    const ratingColor = r.security_rating === 'A' ? '#22c55e' : r.security_rating === 'B' ? '#3b82f6' : r.security_rating === 'C' ? '#f59e0b' : '#ef4444';
+    if (safe('detailRating').style) safe('detailRating').style.color = ratingColor;
+
     const ab = r.asset_breakdown || {};
-    $('detailStats').innerHTML = `
-      <div class="stat-card"><div class="stat-label">Security Rating</div><div class="stat-value" style="color:${r.security_rating === 'A' ? '#22c55e' : r.security_rating === 'B' ? '#3b82f6' : r.security_rating === 'C' ? '#f59e0b' : '#ef4444'}">${r.security_rating}</div><div class="stat-sub">Risk: ${r.risk_score}</div></div>
+    safe('detailStats').innerHTML = `
+      <div class="stat-card"><div class="stat-label">Security Rating</div><div class="stat-value" style="color:${ratingColor}">${r.security_rating || 'N/A'}</div><div class="stat-sub">Risk: ${r.risk_score || 0}</div></div>
       <div class="stat-card"><div class="stat-label">Total Assets</div><div class="stat-value">${r.total_assets || 0}</div></div>
       <div class="stat-card"><div class="stat-label">Vulnerabilities</div><div class="stat-value" style="color:var(--red)">${r.vulnerability_summary?.total || 0}</div><div class="stat-sub">${r.vulnerability_summary?.high || 0} high · ${r.vulnerability_summary?.medium || 0} medium</div></div>
       <div class="stat-card"><div class="stat-label">Subdomains</div><div class="stat-value">${ab.subdomains || 0}</div></div>
@@ -138,80 +141,34 @@ async function loadTargetDetail(id) {
       <div class="stat-card"><div class="stat-label">Technologies</div><div class="stat-value">${ab.technologies || 0}</div></div>
     `;
 
-    // Vulnerabilities
     const vs = r.vulnerability_summary || {};
-    const vulnList = $('detailVulns');
-    if (vs.total > 0) {
-      vulnList.innerHTML = (vs.top_findings || []).map(v => `
-        <div class="asset-item">
-          <span class="badge badge-${v.severity}">${v.severity}</span>
-          <span class="val">${v.value}</span>
-          <span class="detail">${(v.details || '').substring(0, 80)}</span>
-          <span class="risk risk-${v.risk >= 7 ? 'high' : v.risk >= 4 ? 'medium' : 'low'}">${v.risk}</span>
-        </div>
-      `).join('');
-      if (vs.total > 5) vulnList.innerHTML += `<div style="padding:12px;text-align:center;color:var(--text3);font-size:13px">... and ${vs.total - 5} more vulnerabilities</div>`;
-    } else {
-      vulnList.innerHTML = '<div class="empty-state" style="padding:20px"><p>No vulnerabilities found</p></div>';
-    }
+    safe('detailVulns').innerHTML = vs.total > 0
+      ? (vs.top_findings || []).map(v => `<div class="asset-item"><span class="badge badge-${v.severity}">${v.severity}</span><span class="val">${v.value}</span><span class="detail">${(v.details || '').substring(0, 80)}</span><span class="risk risk-${v.risk >= 7 ? 'high' : v.risk >= 4 ? 'medium' : 'low'}">${v.risk}</span></div>`).join('') + (vs.total > 5 ? `<div style="padding:12px;text-align:center;color:var(--text3);font-size:13px">... and ${vs.total - 5} more</div>` : '')
+      : '<div class="empty-state" style="padding:20px"><p>No vulnerabilities found</p></div>';
 
-    // Technology Stack
-    const techList = $('detailTech');
-    if (r.technology_stack?.length) {
-      techList.innerHTML = r.technology_stack.map(t => `<div class="asset-item"><span class="badge badge-technology">tech</span><span class="val">${t}</span></div>`).join('');
-    } else {
-      techList.innerHTML = '<div class="empty-state" style="padding:20px"><p>No technologies detected</p></div>';
-    }
+    safe('detailTech').innerHTML = (r.technology_stack || []).length
+      ? r.technology_stack.map(t => `<div class="asset-item"><span class="badge badge-technology">tech</span><span class="val">${t}</span></div>`).join('')
+      : '<div class="empty-state" style="padding:20px"><p>No technologies detected</p></div>';
 
-    // Open Ports
-    const portList = $('detailPorts');
-    if (r.open_ports?.length) {
-      portList.innerHTML = r.open_ports.map(p => `<div class="asset-item"><span class="badge badge-port">port</span><span class="val">${p.port}</span><span class="detail">${(p.details || '').substring(0, 60)}</span></div>`).join('');
-    } else {
-      portList.innerHTML = '<div class="empty-state" style="padding:20px"><p>No open ports detected</p></div>';
-    }
+    safe('detailPorts').innerHTML = (r.open_ports || []).length
+      ? r.open_ports.map(p => `<div class="asset-item"><span class="badge badge-port">port</span><span class="val">${p.port}</span><span class="detail">${(p.details || '').substring(0, 60)}</span></div>`).join('')
+      : '<div class="empty-state" style="padding:20px"><p>No open ports detected</p></div>';
 
-    // Subdomains
-    const subList = $('detailSubdomains');
-    if (r.subdomains?.length) {
-      subList.innerHTML = r.subdomains.map(s => `<div class="asset-item"><span class="badge badge-subdomain">sub</span><span class="val">${s}</span></div>`).join('');
-    } else {
-      subList.innerHTML = '<div class="empty-state" style="padding:20px"><p>No subdomains discovered</p></div>';
-    }
+    safe('detailSubdomains').innerHTML = (r.subdomains || []).length
+      ? r.subdomains.map(s => `<div class="asset-item"><span class="badge badge-subdomain">sub</span><span class="val">${s}</span></div>`).join('')
+      : '<div class="empty-state" style="padding:20px"><p>No subdomains discovered</p></div>';
 
-    // All Assets
-    const assetList = $('detailAssets');
-    if (allAssets.length) {
-      assetList.innerHTML = allAssets.map(a => `
-        <div class="asset-item">
-          <span class="badge badge-${a.asset_type}">${a.asset_type}</span>
-          <span class="val">${a.value}</span>
-          <span class="detail">${(a.details || '').substring(0, 50)}</span>
-          <span class="risk risk-${a.risk_score >= 7 ? 'high' : a.risk_score >= 4 ? 'medium' : 'none'}">${a.risk_score || 0}</span>
-        </div>
-      `).join('');
-    } else {
-      assetList.innerHTML = '<div class="empty-state" style="padding:20px"><p>No assets discovered yet</p></div>';
-    }
+    safe('detailAssets').innerHTML = allAssets.length
+      ? allAssets.map(a => `<div class="asset-item"><span class="badge badge-${a.asset_type}">${a.asset_type}</span><span class="val">${a.value}</span><span class="detail">${(a.details || '').substring(0, 50)}</span><span class="risk risk-${a.risk_score >= 7 ? 'high' : a.risk_score >= 4 ? 'medium' : 'none'}">${a.risk_score || 0}</span></div>`).join('')
+      : '<div class="empty-state" style="padding:20px"><p>No assets discovered yet</p></div>';
 
-    // Scans
-    const scanList = $('detailScans');
-    if (allScans.length) {
-      scanList.innerHTML = allScans.map(j => `
-        <div class="asset-item">
-          <span class="badge badge-${j.status}">${j.status}</span>
-          <span class="val">${j.scan_type} (${j.scan_profile || 'std'})</span>
-          <span class="detail">${j.results_count || 0} findings</span>
-          <span style="font-size:11px;color:var(--text3)">${j.started_at ? new Date(j.started_at).toLocaleString() : '-'}</span>
-        </div>
-      `).join('');
-    } else {
-      scanList.innerHTML = '<div class="empty-state" style="padding:20px"><p>No scans yet — run your first scan!</p></div>';
-    }
+    safe('detailScans').innerHTML = allScans.length
+      ? allScans.map(j => `<div class="asset-item"><span class="badge badge-${j.status}">${j.status}</span><span class="val">${j.scan_type} (${j.scan_profile || 'std'})</span><span class="detail">${j.results_count || 0} findings</span><span style="font-size:11px;color:var(--text3)">${j.started_at ? new Date(j.started_at).toLocaleString() : '-'}</span></div>`).join('')
+      : '<div class="empty-state" style="padding:20px"><p>No scans yet</p></div>';
 
   } catch (e) {
-    $('detailBody').innerHTML = `<div class="empty-state"><p>⚠️ Failed to load report</p><p style="font-size:13px;color:var(--text3)">${e.message}</p></div>`;
-    toast('Failed to load report', 'error');
+    safe('detailBody').innerHTML = `<div class="empty-state"><p>⚠️ Failed to load report</p><p style="font-size:13px;color:var(--text3)">${e.message || 'Unknown error'}</p><button class="btn btn-sm" style="margin-top:12px" onclick="loadTargetDetail(${id})">Retry</button></div>`;
+    if (e.message && e.message !== 'Unknown error') toast('Report error: ' + e.message.substring(0, 50), 'error');
   }
 }
 
