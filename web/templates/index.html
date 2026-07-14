@@ -16,7 +16,7 @@
 
 <header>
   <div class="inner">
-    <div class="logo" onclick="showPage('hero')">ASM <span>v2</span></div>
+    <div class="logo" onclick="showPage('hero')">ASM <span>v3</span></div>
     <nav>
       <button onclick="showPage('target-list')">Targets</button>
       <button onclick="showPage('hero')">Home</button>
@@ -24,11 +24,12 @@
   </div>
 </header>
 
-<!-- ═══ PAGE 1: HERO ─── just an input ═══ -->
+<!-- PAGE 1: HERO -->
 <div id="hero" class="page active">
   <div class="hero">
-    <div class="hero-badge">🔒 Open Source Attack Surface Manager</div>
+    <div class="hero-badge">Open Source Attack Surface Manager</div>
     <h1>What domain do you<br>want to analyze?</h1>
+    <p style="color:var(--text2);margin-bottom:36px">Get a comprehensive security report — subdomains, ports, vulnerabilities, CVEs, and more</p>
     <form id="heroForm">
       <div class="hero-input-wrap">
         <input id="heroInput" type="text" placeholder="example.com" autofocus required>
@@ -38,7 +39,7 @@
   </div>
 </div>
 
-<!-- ═══ PAGE 2: TARGETS ─── card grid ═══ -->
+<!-- PAGE 2: TARGETS -->
 <div id="target-list" class="page">
   <div class="page-inner">
     <div class="page-header">
@@ -51,40 +52,62 @@
   </div>
 </div>
 
-<!-- ═══ PAGE 3: TARGET DETAIL ═══ -->
+<!-- PAGE 3: COMPREHENSIVE TARGET REPORT -->
 <div id="target-detail" class="page">
   <div class="page-inner">
     <button class="back-btn" onclick="showPage('target-list')">← All Targets</button>
     <div class="page-header" style="display:flex;justify-content:space-between;align-items:start;flex-wrap:wrap">
       <div>
-        <h1 id="detailTitle">Loading...</h1>
+        <h1><span id="detailTitle">Loading...</span> <span id="detailRating" style="font-size:28px;font-weight:900;margin-left:12px"></span></h1>
         <div class="sub" id="detailSubtitle"></div>
       </div>
-      <div style="display:flex;gap:8px;align-items:center">
-        <strong>Risk: <span id="detailRisk"></span></strong>
-        <button class="btn btn-sm" onclick="runScanFromDetail()">🔄 Scan</button>
-        <button class="btn btn-sm btn-outline" onclick="refreshDetail()">Refresh</button>
+      <div style="display:flex;gap:8px;align-items:center;margin-top:8px">
+        <button class="btn" onclick="runComprehensiveScan()">🔄 Deep Scan</button>
       </div>
     </div>
     <div id="detailStats" class="stats-grid"></div>
+    <div id="detailBody">
 
+    <!-- Vulnerabilities -->
     <div class="section">
-      <h2>Assets <span id="assetCount"></span></h2>
+      <h2>🔴 Vulnerabilities <span>top findings</span></h2>
+      <div class="card" style="padding:0;overflow:hidden" id="detailVulns"></div>
+    </div>
+
+    <!-- Technology Stack -->
+    <div class="section">
+      <h2>⚡ Technology Stack</h2>
+      <div class="card" style="padding:0;overflow:hidden" id="detailTech"></div>
+    </div>
+
+    <!-- Open Ports -->
+    <div class="section">
+      <h2>🔌 Open Ports</h2>
+      <div class="card" style="padding:0;overflow:hidden" id="detailPorts"></div>
+    </div>
+
+    <!-- Subdomains -->
+    <div class="section">
+      <h2>🌐 Subdomains</h2>
+      <div class="card" style="padding:0;overflow:hidden" id="detailSubdomains"></div>
+    </div>
+
+    <!-- All Assets -->
+    <div class="section">
+      <h2>📦 All Assets</h2>
       <div class="card" style="padding:0;overflow:hidden" id="detailAssets"></div>
     </div>
 
+    <!-- Scan History -->
     <div class="section">
-      <h2>Scans</h2>
+      <h2>📋 Scan History</h2>
       <div class="card" style="padding:0;overflow:hidden" id="detailScans"></div>
     </div>
 
-    <div class="section">
-      <h2>Risk Classification</h2>
-      <div class="card" id="detailClassification"></div>
     </div>
   </div>
 </div>
 
-<script src="/static/js/app.js?v=2"></script>
+<script src="/static/js/app.js?v=3"></script>
 </body>
 </html>

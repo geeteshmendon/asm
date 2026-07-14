@@ -262,6 +262,10 @@ SCAN_PROFILES = {
         "passive": False,
         "ssl": False,
         "screenshot": False,
+        "takeover": False,
+        "api_discovery": False,
+        "cloud": False,
+        "cve": False,
     },
     "standard": {
         "discovery": True,
@@ -272,6 +276,10 @@ SCAN_PROFILES = {
         "passive": True,
         "ssl": False,
         "screenshot": False,
+        "takeover": False,
+        "api_discovery": False,
+        "cloud": False,
+        "cve": False,
     },
     "deep": {
         "discovery": True,
@@ -282,6 +290,10 @@ SCAN_PROFILES = {
         "passive": True,
         "ssl": True,
         "screenshot": True,
+        "takeover": True,
+        "api_discovery": True,
+        "cloud": True,
+        "cve": True,
     },
 }
 
@@ -371,6 +383,30 @@ async def trigger_scan(target_id: int, request: Optional[ScanRequest] = None, db
             await notify_clients(target_id, job)
             all_results.extend(await ssl_engine.analyze_ssl(domain))
 
+        # Subdomain takeover check
+        if profile.get("takeover") and scan_type in ("full", "vuln"):
+            await update_progress(db, job, 83, "Checking for subdomain takeovers...")
+            await notify_clients(target_id, job)
+            sub_assets = [a.value for a in db.query(Asset).filter(
+                Asset.target_id == target_id, Asset.asset_type == "subdomain"
+            ).all() if a.value.endswith(f".{domain}")]
+            all_results.extend(await takeover_engine.scan_takeovers(domain, sub_assets))
+
+        # API discovery
+        if profile.get("api_discovery") and scan_type in ("full", "tech"):
+            await update_progress(db, job, 86, "Discovering API endpoints...")
+            await notify_clients(target_id, job)
+            all_results.extend(await api_discovery_engine.scan_for_apis(domain))
+
+        # Cloud asset discovery
+        if profile.get("cloud") and scan_type in ("full", "discovery"):
+            await update_progress(db, job, 88, "Discovering cloud assets...")
+            await notify_clients(target_id, job)
+            subdomains = [a.value for a in db.query(Asset).filter(
+                Asset.target_id == target_id, Asset.asset_type == "subdomain"
+            ).all()]
+            all_results.extend(await cloud_engine.discover_cloud_assets(domain, subdomains))
+
         # Vulnerabilities
         if profile.get("vuln") and scan_type in ("full", "vuln"):
             await update_progress(db, job, 90, "Scanning for vulnerabilities...")
@@ -378,6 +414,17 @@ async def trigger_scan(target_id: int, request: Optional[ScanRequest] = None, db
             all_results.extend(await vuln_engine.scan_vulnerabilities(domain))
             vuln_port_results = await vuln_engine.scan_vulnerabilities(domain, 80)
             all_results.extend(vuln_port_results)
+
+        # CVE lookup
+        if profile.get("cve") and scan_type in ("full", "tech"):
+            await update_progress(db, job, 95, "Looking up CVEs for detected technologies...")
+            await notify_clients(target_id, job)
+            tech_assets = [{"asset_type": a.asset_type, "value": a.value, "details": a.details or ""}
+                           for a in db.query(Asset).filter(
+                               Asset.target_id == target_id, Asset.asset_type == "technology"
+                           ).all()]
+            cve_results = await cve_engine.check_cves_for_assets(tech_assets)
+            all_results.extend(cve_results)
 
         # Save results
         new_assets = []
@@ -651,7 +698,7 @@ def list_scan_profiles():
     return [
         {"name": "light", "description": "Quick scan - subdomains + common ports only"},
         {"name": "standard", "description": "Balanced scan - all modules except SSL deep analysis"},
-        {"name": "deep", "description": "Full scan - all modules including SSL cipher analysis + screenshots"},
+        {"name": "deep", "description": "Full scan - all modules including SSL cipher analysis, subdomain takeover, API discovery, cloud assets, and CVE lookup"},
 ]
 
 
@@ -847,3 +894,80 @@ def classify_assets(target_id: int, db: Session = Depends(get_db)):
         classification["scan_recommendations"].append("No port scan data. Run a port scan.")
 
     return classification
+
+
+# ─── Comprehensive Target Report ──────────────────────────
+
+@router.get("/targets/{target_id}/report")
+def comprehensive_report(target_id: int, db: Session = Depends(get_db)):
+    target = db.query(Target).filter(Target.id == target_id).first()
+    if not target:
+        raise HTTPException(status_code=404, detail="Target not found")
+
+    assets = db.query(Asset).filter(Asset.target_id == target_id).all()
+    scans = db.query(ScanJob).filter(ScanJob.target_id == target_id).order_by(ScanJob.started_at.desc()).limit(10).all()
+
+    vulns = [a for a in assets if a.asset_type == "vulnerability"]
+    techs = [a for a in assets if a.asset_type == "technology"]
+    ports = [a for a in assets if a.asset_type == "port"]
+    certs = [a for a in assets if a.asset_type == "certificate"]
+    subs = [a for a in assets if a.asset_type == "subdomain"]
+    dns_recs = [a for a in assets if a.asset_type == "dns_record"]
+
+    high_vulns = [a for a in vulns if (a.risk_score or 0) >= 7]
+    medium_vulns = [a for a in vulns if 4 <= (a.risk_score or 0) < 7]
+
+    tech_summary = []
+    for t in techs[:10]:
+        tech_summary.append(f"{t.value}: {t.details[:80] if t.details else 'detected'}")
+
+    vuln_summary = []
+    for v in vulns[:10]:
+        severity = "critical" if (v.risk_score or 0) >= 9 else "high" if (v.risk_score or 0) >= 7 else "medium" if (v.risk_score or 0) >= 4 else "low"
+        vuln_summary.append({"value": v.value, "severity": severity, "risk": v.risk_score or 0, "details": (v.details or "")[:120]})
+
+    risk_score = target.risk_score or 0
+    if risk_score >= 15:
+        security_rating = "F"
+    elif risk_score >= 10:
+        security_rating = "D"
+    elif risk_score >= 5:
+        security_rating = "C"
+    elif risk_score >= 2:
+        security_rating = "B"
+    else:
+        security_rating = "A"
+
+    return {
+        "domain": target.domain,
+        "target_id": target.id,
+        "risk_score": risk_score,
+        "security_rating": security_rating,
+        "total_assets": len(assets),
+        "asset_breakdown": {
+            "subdomains": len(subs),
+            "ports": len(ports),
+            "certificates": len(certs),
+            "technologies": len(techs),
+            "vulnerabilities": len(vulns),
+            "dns_records": len(dns_recs),
+        },
+        "vulnerability_summary": {
+            "total": len(vulns),
+            "high": len(high_vulns),
+            "medium": len(medium_vulns),
+            "low": len(vulns) - len(high_vulns) - len(medium_vulns),
+            "top_findings": vuln_summary[:5],
+        },
+        "technology_stack": tech_summary,
+        "open_ports": [{"port": a.value, "details": (a.details or "")[:60]} for a in ports[:20]],
+        "certificates": [{"value": a.value, "details": (a.details or "")[:80]} for a in certs[:3]],
+        "subdomains": [a.value for a in subs[:30]],
+        "last_scanned": target.last_scanned,
+        "scan_count": len(scans),
+        "latest_scans": [
+            {"type": s.scan_type, "profile": s.scan_profile, "status": s.status,
+             "results": s.results_count, "started": s.started_at}
+            for s in scans[:5]
+        ],
+    }
