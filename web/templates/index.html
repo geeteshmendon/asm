@@ -18,74 +18,68 @@
   <div class="inner">
     <div class="logo" onclick="showPage('hero')">ASM <span>v2</span></div>
     <nav>
-      <button class="active" onclick="showPage('target-list')">Targets</button>
+      <button onclick="showPage('target-list')">Targets</button>
       <button onclick="showPage('hero')">Home</button>
     </nav>
   </div>
 </header>
 
-<!-- ═══ HERO ═══ -->
+<!-- ═══ PAGE 1: HERO ─── just an input ═══ -->
 <div id="page-hero" class="page active">
   <div class="hero">
-    <div class="hero-badge">🔒 Open Source Attack Surface Management</div>
-    <h1>Discover Your<br>Attack Surface</h1>
-    <p>Enter a domain to uncover subdomains, ports, technologies, certificates, vulnerabilities, and more — all in seconds.</p>
-    <div class="hero-input-wrap">
-      <input id="heroInput" type="text" placeholder="example.com" autofocus>
-      <button onclick="addTargetFromHero()">Analyze →</button>
-    </div>
-    <div class="hero-stats">
-      <div><div class="num" id="hero-targets">0</div><div class="label">Targets</div></div>
-      <div><div class="num" id="hero-assets">0</div><div class="label">Assets Found</div></div>
-      <div><div class="num" id="hero-scans">0</div><div class="label">Scans Done</div></div>
-    </div>
-    <div class="scroll-indicator" onclick="showPage('target-list')">
-      <span>View Targets</span>
-      <div class="arrow"></div>
-    </div>
+    <div class="hero-badge">🔒 Open Source Attack Surface Manager</div>
+    <h1>What domain do you<br>want to analyze?</h1>
+    <form id="heroForm">
+      <div class="hero-input-wrap">
+        <input id="heroInput" type="text" placeholder="example.com" autofocus required>
+        <button id="heroBtn" type="submit">→</button>
+      </div>
+    </form>
   </div>
 </div>
 
-<!-- ═══ TARGET LIST ═══ -->
+<!-- ═══ PAGE 2: TARGETS ─── card grid ═══ -->
 <div id="page-target-list" class="page">
   <div class="page-inner">
     <div class="page-header">
-      <h1>🔭 Targets <span style="font-size:16px;font-weight:400;color:var(--text3)" id="totalTargets"></span></h1>
-      <div class="sub">Add a domain or choose an existing one to dive deep</div>
+      <h1>Targets <span id="totalTargets" style="font-size:16px;font-weight:400;color:var(--text3)"></span></h1>
     </div>
     <div class="form-row" style="margin-bottom:20px">
-      <input id="targetInput" type="text" placeholder="Add new target..." style="flex:1;max-width:400px">
-      <button class="btn" onclick="addTargetFromList()">Add</button>
-      <input type="text" placeholder="Search..." oninput="searchTargets()" style="max-width:200px;margin-left:auto">
+      <input id="targetInput" type="text" placeholder="Add another domain..." style="flex:1;max-width:400px">
     </div>
-    <div id="targetGrid" class="target-grid stagger"></div>
+    <div id="targetGrid" class="target-grid"></div>
   </div>
 </div>
 
-<!-- ═══ TARGET DETAIL ═══ -->
+<!-- ═══ PAGE 3: TARGET DETAIL ═══ -->
 <div id="page-target-detail" class="page">
   <div class="page-inner">
-    <button class="back-btn" onclick="showPage('target-list')">← Back to Targets</button>
-    <div class="page-header">
-      <h1 id="detailTitle">Loading...</h1>
-      <div class="sub" id="detailSubtitle"></div>
-    </div>
-    <div style="display:flex;gap:10px;margin-bottom:20px;flex-wrap:wrap">
-      <button class="btn" onclick="runDetailScan()">🔄 Run Scan</button>
-      <button class="btn btn-outline" onclick="loadDetailAssets(detailTargetId)">🔄 Refresh</button>
-      <span style="margin-left:auto;display:flex;align-items:center;gap:6px;font-size:14px">Risk Score: <strong id="detailRisk"></strong></span>
+    <button class="back-btn" onclick="showPage('target-list')">← All Targets</button>
+    <div class="page-header" style="display:flex;justify-content:space-between;align-items:start;flex-wrap:wrap">
+      <div>
+        <h1 id="detailTitle">Loading...</h1>
+        <div class="sub" id="detailSubtitle"></div>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <strong>Risk: <span id="detailRisk"></span></strong>
+        <button class="btn btn-sm" onclick="runScanFromDetail()">🔄 Scan</button>
+        <button class="btn btn-sm btn-outline" onclick="refreshDetail()">Refresh</button>
+      </div>
     </div>
     <div id="detailStats" class="stats-grid"></div>
+
     <div class="section">
-      <h2>📦 Assets <span>discovered for this target</span></h2>
+      <h2>Assets <span id="assetCount"></span></h2>
       <div class="card" style="padding:0;overflow:hidden" id="detailAssets"></div>
     </div>
+
     <div class="section">
-      <h2>📋 Scans <span>history</span></h2>
+      <h2>Scans</h2>
       <div class="card" style="padding:0;overflow:hidden" id="detailScans"></div>
     </div>
+
     <div class="section">
-      <h2>📊 Classification <span>risk breakdown</span></h2>
+      <h2>Risk Classification</h2>
       <div class="card" id="detailClassification"></div>
     </div>
   </div>
