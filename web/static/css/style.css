@@ -165,6 +165,7 @@ input:focus,select:focus{border-color:var(--accent)}
 .section{margin-bottom:28px}
 .section h2{font-size:20px;font-weight:700;margin-bottom:16px;display:flex;align-items:center;gap:8px}
 .section h2 span{font-size:13px;color:var(--text3);font-weight:400}
+#detail-loading{text-align:center;padding:60px}
 
 /* ─── Tools Grid ─── */
 .tools-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:16px}

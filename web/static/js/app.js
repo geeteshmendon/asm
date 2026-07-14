@@ -113,7 +113,9 @@ function safe(id) { const e = $(id); return e || { innerHTML: '', textContent: '
 async function loadTargetDetail(id) {
   detailId = id;
   const body = safe('detailBody');
-  body.innerHTML = `<div style="text-align:center;padding:60px"><div class="spinner" style="width:32px;height:32px;margin:0 auto 16px"></div><p style="color:var(--text3)">Loading comprehensive report...</p></div>`;
+  const loading = safe('detail-loading');
+  if (loading.style) loading.style.display = 'block';
+  if (body.style) body.style.display = 'none';
   try {
     const [reportRes, assetsRes, scansRes] = await Promise.all([
       fetch(`${API}/targets/${id}/report`).then(r => r.json()),
@@ -166,7 +168,12 @@ async function loadTargetDetail(id) {
       ? allScans.map(j => `<div class="asset-item"><span class="badge badge-${j.status}">${j.status}</span><span class="val">${j.scan_type} (${j.scan_profile || 'std'})</span><span class="detail">${j.results_count || 0} findings</span><span style="font-size:11px;color:var(--text3)">${j.started_at ? new Date(j.started_at).toLocaleString() : '-'}</span></div>`).join('')
       : '<div class="empty-state" style="padding:20px"><p>No scans yet</p></div>';
 
+    if (loading.style) loading.style.display = 'none';
+    if (body.style) body.style.display = 'block';
+
   } catch (e) {
+    if (loading.style) loading.style.display = 'none';
+    if (body.style) body.style.display = 'block';
     safe('detailBody').innerHTML = `<div class="empty-state"><p>⚠️ Failed to load report</p><p style="font-size:13px;color:var(--text3)">${e.message || 'Unknown error'}</p><button class="btn btn-sm" style="margin-top:12px" onclick="loadTargetDetail(${id})">Retry</button></div>`;
     if (e.message && e.message !== 'Unknown error') toast('Report error: ' + e.message.substring(0, 50), 'error');
   }
