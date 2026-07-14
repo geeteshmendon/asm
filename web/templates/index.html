@@ -8,14 +8,7 @@
 </head>
 <body>
 
-<div id="solar-system">
-  <div class="sun"></div>
-  <div class="orbit o1"><div class="planet p1"></div></div>
-  <div class="orbit o2"><div class="planet p2"></div></div>
-  <div class="orbit o3"><div class="planet p3"></div></div>
-  <div class="orbit o4"><div class="planet p4"></div></div>
-  <div class="orbit o5"><div class="planet p5"></div></div>
-</div>
+<canvas id="starfield"></canvas>
 
 <header>
   <div class="inner">
@@ -111,6 +104,86 @@
   </div>
 </div>
 
+<script>
+const canvas = document.getElementById('starfield');
+const ctx = canvas.getContext('2d');
+let W, H;
+
+function resize() { W = canvas.width = window.innerWidth; H = canvas.height = window.innerHeight; }
+window.addEventListener('resize', resize);
+resize();
+
+// Nebula color palettes
+const nebulae = [
+  { x: 0.15, y: 0.3, r: 0.25, color: 'rgba(30,0,80,' },    // purple
+  { x: 0.8, y: 0.6, r: 0.2, color: 'rgba(0,30,80,' },       // blue
+  { x: 0.5, y: 0.2, r: 0.15, color: 'rgba(80,0,40,' },      // magenta
+  { x: 0.9, y: 0.15, r: 0.12, color: 'rgba(0,40,60,' },     // cyan
+  { x: 0.2, y: 0.8, r: 0.18, color: 'rgba(60,0,60,' },      // violet
+];
+
+const stars = [];
+for (let i = 0; i < 400; i++) {
+  const temp = Math.random(); // stellar temperature affects color
+  let color;
+  if (temp < 0.1) color = { r: 180, g: 200, b: 255 };       // hot blue
+  else if (temp < 0.25) color = { r: 220, g: 230, b: 255 };  // blue-white
+  else if (temp < 0.5) color = { r: 255, g: 255, b: 255 };   // white
+  else if (temp < 0.7) color = { r: 255, g: 240, b: 200 };   // yellow-white
+  else if (temp < 0.85) color = { r: 255, g: 200, b: 150 };  // orange
+  else color = { r: 255, g: 150, b: 100 };                    // red
+  stars.push({
+    x: Math.random() * W, y: Math.random() * H,
+    r: 0.3 + Math.random() * 2.2,
+    col: color, a: 0.4 + Math.random() * 0.6,
+    twinkleSpeed: 0.5 + Math.random() * 2,
+    twinklePhase: Math.random() * Math.PI * 2,
+    driftX: (Math.random() - 0.5) * 0.15,
+    driftY: (Math.random() - 0.5) * 0.15,
+  });
+}
+
+function drawNebulae(t) {
+  nebulae.forEach(n => {
+    const g = ctx.createRadialGradient(n.x*W, n.y*H, 0, n.x*W, n.y*H, n.r*Math.max(W,H));
+    g.addColorStop(0, n.color + '0.04)');
+    g.addColorStop(0.5, n.color + '0.02)');
+    g.addColorStop(1, 'transparent');
+    ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+  });
+}
+
+function drawStars(t) {
+  stars.forEach(s => {
+    const twinkle = Math.sin(t * s.twinkleSpeed + s.twinklePhase) * 0.3 + 0.7;
+    const alpha = s.a * twinkle;
+    ctx.beginPath();
+    ctx.arc(((s.x + s.driftX * t) % W + W) % W, ((s.y + s.driftY * t) % H + H) % H, s.r, 0, Math.PI * 2);
+    ctx.fillStyle = `rgba(${s.col.r},${s.col.g},${s.col.b},${alpha})`;
+    ctx.fill();
+    if (s.r > 1.5 && alpha > 0.6) { // glow on bright stars
+      ctx.beginPath();
+      ctx.arc(((s.x + s.driftX * t) % W + W) % W, ((s.y + s.driftY * t) % H + H) % H, s.r * 3, 0, Math.PI * 2);
+      ctx.fillStyle = `rgba(${s.col.r},${s.col.g},${s.col.b},${alpha * 0.08})`;
+      ctx.fill();
+    }
+  });
+}
+
+function frame(t) {
+  // Deep space gradient
+  const g = ctx.createLinearGradient(0, 0, 0, H);
+  g.addColorStop(0, '#05080f');   // very dark navy top
+  g.addColorStop(0.5, '#08061a');  // dark purple middle
+  g.addColorStop(1, '#0a0510');    // dark violet bottom
+  ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+
+  drawNebulae(t * 0.0001);
+  drawStars(t * 0.001);
+  requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
+</script>
 <script src="/static/js/app.js?v=4"></script>
 </body>
 </html>
